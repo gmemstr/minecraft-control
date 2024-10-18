@@ -45,7 +45,11 @@ impl MinecraftControl {
     }
 
     pub async fn log(&self) -> Result<ReaderStream<tokio::fs::File>, MinecraftError> {
-        let file = match tokio::fs::File::open("/var/lib/minecraft/logs/latest.log").await {
+        let filename = match &self.config.log_path {
+            Some(f) => f,
+            None => &String::from("/var/lib/minecraft/logs/latest.log"),
+        };
+        let file = match tokio::fs::File::open(filename).await {
             Ok(file) => file,
             Err(_err) => return Err(MinecraftError::LogError),
         };
@@ -53,10 +57,14 @@ impl MinecraftControl {
     }
 
     pub async fn command(&self, mut command: String) -> Result<bool, MinecraftError> {
+        let filename = match &self.config.socket_path {
+            Some(f) => f,
+            None => &String::from("/run/minecraft-server.stdin"),
+        };
         let mut file = OpenOptions::new()
             .read(false)
             .write(true)
-            .open("/run/minecraft-server.stdin")
+            .open(filename)
             .await
             .unwrap();
         if !command.ends_with("\n") {
