@@ -15,35 +15,45 @@ use axum::{
 };
 use axum_extra::{headers, TypedHeader};
 use futures::{SinkExt, StreamExt};
-use tokio::{
-    fs::OpenOptions,
-    io::AsyncWriteExt,
-    sync::broadcast::{self, Receiver, Sender},
-};
+use minecraft::MinecraftControl;
+use serde::Deserialize;
+use tokio::{fs, sync::broadcast::Receiver};
 use tokio_tungstenite::tungstenite::Result;
-use tokio_util::io::ReaderStream;
 use tower_http::services::ServeDir;
 
 mod minecraft;
 
+#[derive(Deserialize, Debug, Clone)]
+struct AppConfig {
+    minecraft: Option<minecraft::MinecraftConfig>,
+    webserver: Option<WebserverConfig>
+}
+
+#[derive(Deserialize, Debug, Clone)]
+struct WebserverConfig {}
+
 #[derive(Clone)]
 struct AppState {
-    tx: Sender<String>,
+    config: WebserverConfig,
+    control: MinecraftControl
 }
 
 #[tokio::main]
 async fn main() -> Result<(), IoError> {
-    let (tx, _): (Sender<String>, Receiver<String>) = broadcast::channel(16);
-    let mut control = minecraft::new(tx.clone());
+    let file = fs::read_to_string("config.toml").await.unwrap();
+    let config: AppConfig = toml::from_str(&file).unwrap();
 
-    let state = AppState { tx };
+    let control = minecraft::init(config.minecraft);
 
-    // Create the event loop and TCP listener we'll accept connections on.
-    let _ = tokio::task::spawn_blocking(move || control.read_journal());
+    let webconfig: WebserverConfig = match config.webserver {
+        Some(c) => c,
+        None => WebserverConfig{},
+    };
+    let state = AppState { config: webconfig, control };
 
     let assets_dir = Path::new(".").join("assets");
     println!("assets directory: {}", assets_dir.display());
-    // build our application with some routes
+
     let app = Router::new()
         .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
         .route("/ws", get(ws_handler))
@@ -51,7 +61,6 @@ async fn main() -> Result<(), IoError> {
         .route("/command", post(command_writer))
         .with_state(state);
 
-    // run it with hyper
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     println!("listening on {}", listener.local_addr().unwrap());
     axum::serve(
@@ -65,13 +74,11 @@ async fn main() -> Result<(), IoError> {
 }
 
 async fn log_handler(State(state): State<AppState>) -> impl IntoResponse {
-    let file = match tokio::fs::File::open("/var/lib/minecraft/logs/latest.log").await {
-        Ok(file) => file,
-        Err(err) => return Err((StatusCode::NOT_FOUND, format!("File not found: {}", err))),
+    let logstream = match state.control.log().await {
+        Ok(s) => s,
+        Err(_) => return Err(""),
     };
-
-    let stream = ReaderStream::new(file);
-    let body = Body::from_stream(stream);
+    let body = Body::from_stream(logstream);
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -82,34 +89,18 @@ async fn log_handler(State(state): State<AppState>) -> impl IntoResponse {
     Ok((headers, body))
 }
 
-async fn command_writer(State(state): State<AppState>, mut body: String) -> impl IntoResponse {
-    let mut file = OpenOptions::new()
-        .read(false)
-        .write(true)
-        .open("/run/minecraft-server.stdin")
-        .await
-        .unwrap();
-    if !body.ends_with("\n") {
-        body = format!("{}\n", body);
+async fn command_writer(State(state): State<AppState>, body: String) -> impl IntoResponse {
+    match state.control.command(body).await {
+        Ok(_) => return StatusCode::OK,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
     }
-    let bytes = body.as_bytes();
-    let _ = file.write_all(bytes).await.unwrap();
-    let _ = file.flush().await.unwrap();
-    println!("issued command `{}`", body);
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        header::CONTENT_TYPE,
-        "text/plain; chatset=utf-8".parse().unwrap(),
-    );
-
-    StatusCode::OK
 }
 
 async fn ws_handler(
     ws: WebSocketUpgrade,
     user_agent: Option<TypedHeader<headers::UserAgent>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
 ) -> impl IntoResponse {
     let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
         user_agent.to_string()
@@ -117,7 +108,7 @@ async fn ws_handler(
         String::from("Unknown browser")
     };
     println!("`{user_agent}` at {addr} connected.");
-    let rx = state.tx.subscribe();
+    let rx = state.control.subscribe();
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
     ws.on_upgrade(move |socket| handle_socket(socket, addr, rx))

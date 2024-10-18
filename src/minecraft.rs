@@ -1,45 +1,103 @@
 use std::time::Duration;
 use systemd::{journal, Journal};
-use tokio::sync::broadcast::Sender;
+use tokio::{fs::OpenOptions, io::AsyncWriteExt, sync::broadcast::{self, Receiver, Sender}};
+use tokio_util::io::ReaderStream;
+use serde::Deserialize;
 
-pub struct MinecraftControl {
-    tx: Sender<String>,
+pub enum MinecraftError {
+    LogError,
+    CommandError
 }
 
-pub fn new(tx: Sender<String>) -> MinecraftControl {
-    MinecraftControl { tx }
+#[derive(Deserialize, Debug, Clone)]
+pub struct MinecraftConfig {
+    log_path: Option<String>,
+    socket_path: Option<String>,
+    systemd_unit: Option<String>
+}
+
+#[derive(Clone)]
+pub struct MinecraftControl {
+    config: MinecraftConfig,
+    tx: Sender<String>
+}
+
+pub fn init(config: Option<MinecraftConfig>) -> MinecraftControl {
+    let mc_config = match config {
+        Some(c) => c,
+        None => MinecraftConfig{ log_path: None, socket_path: None, systemd_unit: None },
+    };
+    let (tx, _): (Sender<String>, Receiver<String>) = broadcast::channel(16);
+    let tx_real = tx.clone();
+    let systemd_unit: String = match mc_config.systemd_unit {
+        Some(ref s) => s.clone(),
+        None => String::from("minecraft-server.service"),
+    };
+
+    let _ = tokio::task::spawn_blocking(move || read_journal(tx_real, systemd_unit));
+
+    MinecraftControl { config: mc_config, tx }
 }
 
 impl MinecraftControl {
-    pub fn read_journal(&mut self) {
-        println!("opening journal");
-        let _ = self.tx.send("starting up".to_owned());
-        let mut j: Journal = journal::OpenOptions::default().open().unwrap();
-        let _ = j.seek_tail();
-        let _ = j.previous();
+    pub fn subscribe(&mut self) -> Receiver<String> {
+        self.tx.subscribe()
+    }
 
-        while let Ok(e) = j.next_entry() {
-            match e {
-                Some(entry) => {
-                    let unit = match entry.get("_SYSTEMD_UNIT") {
+    pub async fn log(&self) -> Result<ReaderStream<tokio::fs::File>, MinecraftError> {
+        let file = match tokio::fs::File::open("/var/lib/minecraft/logs/latest.log").await {
+            Ok(file) => file,
+            Err(_err) => return Err(MinecraftError::LogError),
+        };
+        Ok(ReaderStream::new(file))
+    }
+
+    pub async fn command(&self, mut command: String) -> Result<bool, MinecraftError> {
+        let mut file = OpenOptions::new()
+            .read(false)
+            .write(true)
+            .open("/run/minecraft-server.stdin")
+            .await
+            .unwrap();
+        if !command.ends_with("\n") {
+            command = format!("{}\n", command);
+        }
+        let bytes = command.as_bytes();
+        let _ = file.write_all(bytes).await.unwrap();
+        let _ = file.flush().await.unwrap();
+
+        Ok(true)
+    }
+}
+
+fn read_journal(tx: Sender<String>, systemd_unit: String) {
+    println!("opening journal");
+    let _ = tx.send("starting up".to_owned());
+    let mut j: Journal = journal::OpenOptions::default().open().unwrap();
+    let _ = j.seek_tail();
+    let _ = j.previous();
+
+    while let Ok(e) = j.next_entry() {
+        match e {
+            Some(entry) => {
+                let unit = match entry.get("_SYSTEMD_UNIT") {
+                    Some(value) => value,
+                    None => &"".to_owned(),
+                };
+                if unit == &systemd_unit {
+                    let message = match entry.get("MESSAGE") {
                         Some(value) => value,
                         None => &"".to_owned(),
                     };
-                    if unit == "minecraft-server.service" {
-                        let message = match entry.get("MESSAGE") {
-                            Some(value) => value,
-                            None => &"".to_owned(),
-                        };
 
-                        match self.tx.send(message.to_owned()) {
-                            Ok(_s) => { }
-                            Err(e) => println!("could not write to tx {}", e),
-                        };
-                    }
+                    match tx.send(message.to_owned()) {
+                        Ok(_s) => { }
+                        Err(e) => println!("could not write to tx {}", e),
+                    };
                 }
-                None => {
-                    std::thread::sleep(Duration::from_secs(1));
-                }
+            }
+            None => {
+                std::thread::sleep(Duration::from_secs(1));
             }
         }
     }

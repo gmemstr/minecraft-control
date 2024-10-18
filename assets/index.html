@@ -3,6 +3,7 @@
     <link rel="stylesheet" href="./styles.css">
 </head>
 
+<body>
 <h1>Minecraft Control</h1>
 
 <pre class="logarea" id="logwrapper">
@@ -12,6 +13,7 @@
 
 <input type="text" id="command" name="command" autocomplete="off">
 
+<p><a href="https://git.gmem.ca/arch/minecraft-control">source code</a></p>
 <script>
 const load = async () => {
   const logElement = document.getElementById("log");
@@ -43,3 +45,4 @@ input.addEventListener("keypress", async function(event) {
 
 load();
 </script>
+</body>
