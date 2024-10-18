@@ -1,0 +1,16 @@
+[package]
+name = "minecraft-control"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.7.7", features = ["http2", "ws"] }
+axum-extra = { version = "0.9.4", features = ["typed-header"] }
+futures = "0.3.31"
+futures-channel = "0.3.28"
+futures-util = "0.3.28"
+systemd = "0.10.0"
+tokio = { version = "1.40.0", features = ["macros", "net", "rt-multi-thread", "sync", "time"] }
+tokio-tungstenite = "0.24.0"
+tokio-util = { version = "0.7.12", features = ["io"] }
+tower-http = { version = "0.6.1", features = ["fs"] }

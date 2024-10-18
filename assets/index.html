@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<head>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+
+<h1>Minecraft Control</h1>
+
+<pre class="logarea" id="logwrapper">
+<code id="log">
+</code>
+</pre>
+
+<input type="text" id="command" name="command" autocomplete="off">
+
+<script>
+const load = async () => {
+  const logElement = document.getElementById("log");
+  const logWrapper = document.getElementById("logwrapper");
+  let backlog = await fetch("/log");
+  let backlog_text = await backlog.text();
+  logElement.innerHTML = backlog_text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;') + "--- live ---\n";
+  logWrapper.scrollTop = logWrapper.scrollHeight;
+
+  let ws = new WebSocket("/ws");
+  ws.onmessage = (event) => {
+    logElement.innerHTML += `${event.data.replace("", "").replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;')}\n`;
+    logWrapper.scrollTop = logWrapper.scrollHeight;
+  };
+  ws.onclose = (event) => { console.log("closed") };
+}
+
+var input = document.getElementById("command");
+input.addEventListener("keypress", async function(event) {
+  // If the user presses the "Enter" key on the keyboard
+  if (event.key === "Enter") {
+    // Cancel the default action, if needed
+    event.preventDefault();
+    // Trigger the button element with a click
+    await fetch("/command", {method: "POST", body: input.value});
+    input.value = "";
+  }
+});
+
+load();
+</script>
