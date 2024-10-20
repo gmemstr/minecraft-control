@@ -1,31 +1,45 @@
+use serde::Deserialize;
 use std::time::Duration;
 use systemd::{journal, Journal};
-use tokio::{fs::OpenOptions, io::AsyncWriteExt, sync::broadcast::{self, Receiver, Sender}};
+use tokio::{
+    fs::OpenOptions,
+    io::AsyncWriteExt,
+    sync::broadcast::{self, Receiver, Sender},
+};
 use tokio_util::io::ReaderStream;
-use serde::Deserialize;
 
 pub enum MinecraftError {
-    LogError,
-    CommandError
+    LogError(tokio::io::Error),
+    CommandError(String),
+}
+
+impl From<tokio::io::Error> for MinecraftError {
+    fn from(e: tokio::io::Error) -> Self {
+        MinecraftError::LogError(e)
+    }
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct MinecraftConfig {
     log_path: Option<String>,
     socket_path: Option<String>,
-    systemd_unit: Option<String>
+    systemd_unit: Option<String>,
 }
 
 #[derive(Clone)]
 pub struct MinecraftControl {
     config: MinecraftConfig,
-    tx: Sender<String>
+    tx: Sender<String>,
 }
 
 pub fn init(config: Option<MinecraftConfig>) -> MinecraftControl {
     let mc_config = match config {
         Some(c) => c,
-        None => MinecraftConfig{ log_path: None, socket_path: None, systemd_unit: None },
+        None => MinecraftConfig {
+            log_path: None,
+            socket_path: None,
+            systemd_unit: None,
+        },
     };
     let (tx, _): (Sender<String>, Receiver<String>) = broadcast::channel(16);
     let tx_real = tx.clone();
@@ -36,7 +50,10 @@ pub fn init(config: Option<MinecraftConfig>) -> MinecraftControl {
 
     let _ = tokio::task::spawn_blocking(move || read_journal(tx_real, systemd_unit));
 
-    MinecraftControl { config: mc_config, tx }
+    MinecraftControl {
+        config: mc_config,
+        tx,
+    }
 }
 
 impl MinecraftControl {
@@ -49,10 +66,7 @@ impl MinecraftControl {
             Some(f) => f,
             None => &String::from("/var/lib/minecraft/logs/latest.log"),
         };
-        let file = match tokio::fs::File::open(filename).await {
-            Ok(file) => file,
-            Err(_err) => return Err(MinecraftError::LogError),
-        };
+        let file = tokio::fs::File::open(filename).await?;
         Ok(ReaderStream::new(file))
     }
 
@@ -99,7 +113,7 @@ fn read_journal(tx: Sender<String>, systemd_unit: String) {
                     };
 
                     match tx.send(message.to_owned()) {
-                        Ok(_s) => { }
+                        Ok(_s) => {}
                         Err(e) => println!("could not write to tx {}", e),
                     };
                 }

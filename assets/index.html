@@ -6,6 +6,9 @@
 <body>
 <h1>Minecraft Control</h1>
 
+<nav id="nav">
+</nav>
+
 <pre class="logarea" id="logwrapper">
 <code id="log">
 </code>
@@ -16,6 +19,15 @@
 <p><a href="https://git.gmem.ca/arch/minecraft-control">source code</a></p>
 <script>
 const load = async () => {
+  const navElement = document.getElementById("nav");
+  let maptest = await fetch("/map/");
+  if (maptest.status == 200) {
+    const mapLink = document.createElement("a");
+    mapLink.href = "/map/";
+    mapLink.innerHTML = "BlueMap";
+    navElement.appendChild(mapLink);
+  }
+
   const logElement = document.getElementById("log");
   const logWrapper = document.getElementById("logwrapper");
   let backlog = await fetch("/log");
