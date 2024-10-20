@@ -3,6 +3,11 @@ name = "minecraft-control"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+strip = true
+lto = true
+
+
 [dependencies]
 axum = { git = "https://github.com/tokio-rs/axum.git", branch = "main", features = ["http2", "ws"] }
 axum-extra = { git = "https://github.com/tokio-rs/axum.git", branch = "main", features = ["typed-header"] }
@@ -16,4 +21,4 @@ tokio = { version = "1.40.0", features = ["macros", "net", "rt-multi-thread", "s
 tokio-tungstenite = "0.24.0"
 tokio-util = { version = "0.7.12", features = ["io"] }
 toml = "0.8.19"
-tower-http = { version = "0.6.1", features = ["fs"] }
+tower-http = { version = "0.6.1", features = ["compression-full", "decompression-full", "fs"] }

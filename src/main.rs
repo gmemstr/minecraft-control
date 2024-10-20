@@ -21,7 +21,7 @@ use minecraft::MinecraftControl;
 use serde::Deserialize;
 use tokio::{fs, sync::broadcast::Receiver};
 use tokio_tungstenite::tungstenite::Result;
-use tower_http::services::ServeDir;
+use tower_http::{compression::CompressionLayer, decompression::RequestDecompressionLayer, services::ServeDir};
 
 mod minecraft;
 
@@ -96,6 +96,8 @@ async fn main() -> Result<(), IoError> {
         .route("/ws", any(ws_handler))
         .route("/log", get(log_handler))
         .route("/command", post(command_writer))
+        .layer(RequestDecompressionLayer::new())
+        .layer(CompressionLayer::new())
         .layer(axum::middleware::from_fn(logging_middleware))
         .with_state(state);
 
