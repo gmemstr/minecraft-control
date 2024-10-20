@@ -64,7 +64,7 @@ async fn main() -> Result<(), IoError> {
 
     let ssl_config: Option<RustlsConfig> = match &state.config.cert_path {
         Some(p) => {
-            let cert = Path::new(p).join("cert.pem");
+            let cert = Path::new(p).join("fullchain.pem");
             let key = Path::new(p).join("key.pem");
             Some(RustlsConfig::from_pem_file(cert, key).await.unwrap())
         }
