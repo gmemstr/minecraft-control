@@ -1,60 +1,74 @@
-<!DOCTYPE html>
-<head>
-    <link rel="stylesheet" href="./styles.css">
-</head>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minecraft Control</title>
+    <link href="./styles.css" rel="stylesheet" />
+  </head>
+  <body>
+    <h1>Minecraft Control</h1>
+    <nav id="nav"></nav>
+    <main>
+    <div class="container">
+      <pre class="logarea" id="logwrapper"><code id="log"><em>Loading...</em></code></pre>
+      <div id="commandcontainer"><input type="text" id="command" name="command" autocomplete="off" placeholder="Enter a command..." /></div>
+    </div>
+    </main>
+    <footer>
+    <p><a href="https://git.gmem.ca/arch/minecraft-control">source code</a></p>
+    </footer>
+    <script>
+      const load = async () => {
+        const navElement = document.getElementById("nav");
+        let maptest = await fetch("/map/");
+        if (maptest.status == 200) {
+          const mapLink = document.createElement("a");
+          mapLink.href = "/map/";
+          mapLink.innerHTML = "BlueMap";
+          navElement.appendChild(mapLink);
+        }
+        const logElement = document.getElementById("log");
+        const logWrapper = document.getElementById("logwrapper");
+        let backlog = await fetch("/log");
+        let backlog_text = await backlog.text();
+        logElement.innerHTML = backlog_text
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#039;') + "--- live ---\n";
+        logWrapper.scrollTop = logWrapper.scrollHeight;
+        let ws = new WebSocket("/ws");
+        ws.onmessage = (event) => {
+          logElement.innerHTML += `${event.data.replace("", "")
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;')}\n`;
+          logWrapper.scrollTop = logWrapper.scrollHeight;
+        };
+        ws.onclose = (event) => {
+          console.log("closed")
+        };
+      }
+      var input = document.getElementById("command");
+      input.addEventListener("keypress", async function(event) {
+        // If the user presses the "Enter" key on the keyboard
+        if (event.key === "Enter") {
+          // Cancel the default action, if needed
+          event.preventDefault();
+          // Trigger the button element with a click
+          await fetch("/command", {
+            method: "POST",
+            body: input.value
+          });
+          input.value = "";
+        }
+      });
+      window.addEventListener("load", load);
 
-<body>
-<h1>Minecraft Control</h1>
-
-<nav id="nav">
-</nav>
-
-<pre class="logarea" id="logwrapper">
-<code id="log">
-</code>
-</pre>
-
-<input type="text" id="command" name="command" autocomplete="off">
-
-<p><a href="https://git.gmem.ca/arch/minecraft-control">source code</a></p>
-<script>
-const load = async () => {
-  const navElement = document.getElementById("nav");
-  let maptest = await fetch("/map/");
-  if (maptest.status == 200) {
-    const mapLink = document.createElement("a");
-    mapLink.href = "/map/";
-    mapLink.innerHTML = "BlueMap";
-    navElement.appendChild(mapLink);
-  }
-
-  const logElement = document.getElementById("log");
-  const logWrapper = document.getElementById("logwrapper");
-  let backlog = await fetch("/log");
-  let backlog_text = await backlog.text();
-  logElement.innerHTML = backlog_text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;') + "--- live ---\n";
-  logWrapper.scrollTop = logWrapper.scrollHeight;
-
-  let ws = new WebSocket("/ws");
-  ws.onmessage = (event) => {
-    logElement.innerHTML += `${event.data.replace("", "").replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;')}\n`;
-    logWrapper.scrollTop = logWrapper.scrollHeight;
-  };
-  ws.onclose = (event) => { console.log("closed") };
-}
-
-var input = document.getElementById("command");
-input.addEventListener("keypress", async function(event) {
-  // If the user presses the "Enter" key on the keyboard
-  if (event.key === "Enter") {
-    // Cancel the default action, if needed
-    event.preventDefault();
-    // Trigger the button element with a click
-    await fetch("/command", {method: "POST", body: input.value});
-    input.value = "";
-  }
-});
-
-load();
-</script>
-</body>
+    </script>
+  </body>
+</html>

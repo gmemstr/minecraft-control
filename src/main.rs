@@ -21,7 +21,9 @@ use minecraft::MinecraftControl;
 use serde::Deserialize;
 use tokio::{fs, sync::broadcast::Receiver};
 use tokio_tungstenite::tungstenite::Result;
-use tower_http::{compression::CompressionLayer, decompression::RequestDecompressionLayer, services::ServeDir};
+use tower_http::{
+    compression::CompressionLayer, decompression::RequestDecompressionLayer, services::ServeDir,
+};
 
 mod minecraft;
 

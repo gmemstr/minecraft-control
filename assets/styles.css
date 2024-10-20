@@ -1,105 +1,126 @@
-/** XESS by Xe Iaso
-
-https://github.com/Xe/Xess
-
-Copyright (c) 2021 Xe <me@christine.website>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
-
-main {
-  font-family: monospace, monospace;
-  max-width: 38rem;
-  padding: 2rem;
-  margin: auto;
-}
-
-@media only screen and (max-device-width: 736px) {
-  main {
-    padding: 0rem;
-  }
-}
-
-::selection {
-  background: #d3869b;
+/* Global Styles */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
 body {
-  background: #282828;
-  color:      #ebdbb2;
-  height: 50vh;
+    font-family: Arial, sans-serif; /* change to your preferred font */
+    background-color: #f0f0f0; /* light gray background */
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
 }
 
-pre {
-  background-color: #3c3836;
-  padding: 1em;
-  border: 0;
+main {
+    flex: 1 0 auto;
+    height: 75vh;
 }
 
-a, a:active, a:visited {
-  color: #d3869b;
-  background-color: #1d2021;
+h1 {
+    text-align: center;
+    color: #333; /* dark gray title color */
+    margin-bottom: 20px;
 }
 
-h1, h2, h3, h4, h5 {
-  margin-bottom: .1rem;
+/* Container for Log and Command Input */
+
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 80%;
+    margin: 0 auto;
+    border-radius: 15px;
+    overflow: hidden;
+    height: 100%;
 }
 
-blockquote {
-  border-left: 1px solid #bdae93;
-  margin: 0.5em 10px;
-  padding: 0.5em 10px;
+/* Log Area */
+
+.logarea {
+    background-color: #333; /* dark gray log area */
+    padding: 10px;
+    border-radius: 15px 15px 0 0;
+    height: 75vh;
+    overflow-y: auto;
+}
+
+#log {
+    font-size: 14px;
+    line-height: 20px;
+    color: #fff; /* white text color */
+    margin-bottom: 10px; /* Add some space between the log and command input */
+}
+
+/* Command Input */
+
+#commandcontainer {
+    display: flex;
+    background-color: #444; /* Darker gray for the input container */
+    border-radius: 0 0 15px 15px;
+    padding: 10px;
+}
+
+#command {
+    padding: 8px 12px;
+    border: none;
+    background-color: transparent;
+    color: #fff; /* white text color */
+    width: 100%;
+    font-size: 16px;
+    outline: none;
+}
+
+#command::placeholder {
+    color: rgba(255, 255, 255, 0.7); /* Lighter gray placeholder text */
+}
+
+/* Link */
+
+a {
+    text-decoration: none;
+    color: #337ab7; /* blue link color */
+}
+
+a:hover {
+    color: #23527c; /* darker blue on hover */
 }
 
 footer {
-  align: center;
+    width: 100%;
+    background-color: #333;
+    padding: 10px;
+    text-align: center;
+    color: #fff;
+    flex-shrink: 0;
 }
 
-@media (prefers-color-scheme: light) {
-    body {
-        background: #fbf1c7;
-        color:      #3c3836;
-    }
-
-    pre {
-        background-color: #ebdbb2;
-        padding: 1em;
-        border: 0;
-    }
-
-    a, a:active, a:visited {
-        color: #b16286;
-        background-color: #f9f5d7;
-    }
-
-    h1, h2, h3, h4, h5 {
-        margin-bottom: .1rem;
-    }
-
-    blockquote {
-        border-left: 1px solid #655c54;
-        margin: 0.5em 10px;
-        padding: 0.5em 10px;
-    }
+footer a {
+    color: #ccc;
 }
 
-.logarea {
-    height: 50vh;
-    overflow: scroll;
+footer a:hover {
+    color: white;
+}
+
+nav {
+    text-align: center;
+    font-size: large;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+@media screen and (max-width: 850px) {
+  .container {
+    width: 100%;
+    border-radius: 0;
+  }
+  .logarea {
+      border-radius: 0;
+  }
+  #commandcontainer {
+      border-radius: 0;
+  }
 }
